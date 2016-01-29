@@ -1,7 +1,12 @@
 package com.example.marwaadel.test1;
 
+import android.content.Context;
+import android.content.SharedPreferences;
+import android.database.Cursor;
+import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.preference.PreferenceManager;
 import android.support.v4.app.Fragment;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -10,7 +15,11 @@ import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.AdapterView;
 import android.widget.GridView;
+
+import com.example.marwaadel.test1.data.MovieContract;
+import com.example.marwaadel.test1.datamodel.Mymovie;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -31,12 +40,43 @@ public class MainActivityFragment extends Fragment {
      ImageAdapter mMovieAdapter;
     ArrayList<String> list= new ArrayList<>();
     GridView g;
+    String SortBy;
+//    private static final String favourite = "favorite";
+
+    TrailerAdapter mTrailerAdapter;
+    private static final String[] MOVIE_COLUMNS = {
+            MovieContract.MovieEntry._ID,
+            MovieContract.MovieEntry.COLUMN_MOVIE_ID,
+            MovieContract.MovieEntry.COLUMN_TITLE,
+            MovieContract.MovieEntry.COLUMN_IMAGE,
+            MovieContract.MovieEntry.COLUMN_OVERVIEW,
+            MovieContract.MovieEntry.COLUMN_RATING,
+            MovieContract.MovieEntry.COLUMN_DATE
+    };
+
+    public static final int COL_ID = 0;
+    public static final int COL_MOVIE_ID = 1;
+    public static final int COL_TITLE = 2;
+    public static final int COL_IMAGE = 3;
+    public static final int COL_OVERVIEW = 4;
+    public static final int COL_RATING = 5;
+    public static final int COL_DATE = 6;
 
 
     public MainActivityFragment() {
     }
+    /**
+     * A callback interface that all activities containing this fragment must
+     * implement. This mechanism allows activities to be notified of item
+     * selections.
+     */
 
-
+    public interface Callback {
+        /**
+         * DetailFragmentCallback for when an item has been selected.
+         */
+        void onItemSelected(Mymovie movie);
+    }
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -45,15 +85,39 @@ public class MainActivityFragment extends Fragment {
     }
 
 
-    private void updateMovie() {
-        FetchMovieTask movieTask = new FetchMovieTask();
-        movieTask.execute();
+    private void updateMovie(String sortBy) {
+//        FetchMovieTask movieTask = new FetchMovieTask();
+//        movieTask.execute();
+        if(!sortBy.contentEquals("favourite")){
+            new FetchMovieTask().execute(sortBy);
+        }
+        else{
+            new FetchFavoriteMoviesTask(getActivity()).execute();
+        }
     }
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState)  {
+
+
         View rootView = inflater.inflate(R.layout.fragment_main, container, false);
          g= (GridView)rootView.findViewById(R.id.gridview);
+        g.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+
+            @Override
+            public void onItemClick(AdapterView<?> adapterView, View view, int position, long l) {
+
+              Mymovie m= mMovieAdapter.getItem(position);
+                ((Callback) getActivity()).onItemSelected(m);
+                //String forecast = mMovieAdapter.getItem(position);
+//                Toast.makeText(getActivity(), forecast, Toast.LENGTH_SHORT).show();
+
+              //  Intent intent = new Intent(getActivity(), DetailActivity.class).putExtra("object",m);
+
+                //  .putExtra(Intent.EXTRA_TEXT, forecast);
+              //  startActivity(intent);
+            }
+        });
 
         return  rootView;
 
@@ -62,30 +126,42 @@ public class MainActivityFragment extends Fragment {
     @Override
     public void onStart() {
         super.onStart();
-       updateMovie();
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getActivity());
+        SortBy = prefs.getString(getString(R.string.pref_sorting_key),
+                getString(R.string.pref_sorting_default_value));
+       updateMovie(SortBy);
     }
 
     @Override
     public void onCreateOptionsMenu(Menu menu, MenuInflater inflater) {
+
         super.onCreateOptionsMenu(menu, inflater);
         inflater.inflate(R.menu.fragment, menu);
     }
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
+
         int id = item.getItemId();
         if (id == R.id.action_refresh) {
-            updateMovie();
+//
+//            FetchMovieTask movieTask = new FetchMovieTask();
+//            movieTask.execute();
+
+           updateMovie(SortBy);
             return true;
         }
         return super.onOptionsItemSelected(item);
     }
 
-    class FetchMovieTask extends AsyncTask<Void, Void, ArrayList<String>> {
+    class FetchMovieTask extends AsyncTask<String, Void, ArrayList<Mymovie>> {
         private final String LOG_TAG = FetchMovieTask.class.getSimpleName();
 
         @Override
-        protected ArrayList<String> doInBackground(Void... params) {
+        protected ArrayList<Mymovie> doInBackground(String... params) {
+            if (params.length == 0) {
+                return null;
+            }
             HttpURLConnection urlConnection = null;
             BufferedReader reader = null;
 
@@ -93,8 +169,19 @@ public class MainActivityFragment extends Fragment {
             String movieJsonStr = null;
 
             try {
-                URL url = new URL("http://api.themoviedb.org/3/discover/movie?sort_by=popularity.desc&api_key=fe3e7286750acc526fce7a8cbdc9e7c1");
+              //  URL url = new URL("http://api.themoviedb.org/3/discover/movie?sort_by=popularity.desc&api_key=fe3e7286750acc526fce7a8cbdc9e7c1");
+                final String BASE_URL="http://api.themoviedb.org/3/discover/movie?";
+                final String sort_by="sort_by";
+                final String api_key="api_key";
 
+//                SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getActivity());
+//                String SortBy = prefs.getString(getString(R.string.pref_sorting_key),
+//                        getString(R.string.pref_sorting_default_value));
+                Uri builtUri = Uri.parse(BASE_URL).buildUpon()
+                        .appendQueryParameter(sort_by, params[0])
+                        .appendQueryParameter(api_key,"fe3e7286750acc526fce7a8cbdc9e7c1")
+                        .build();
+                URL url = new URL(builtUri.toString());
                 urlConnection = (HttpURLConnection) url.openConnection();
                 urlConnection.setRequestMethod("GET");
                 urlConnection.connect();
@@ -143,35 +230,78 @@ public class MainActivityFragment extends Fragment {
             return null;
         }
 
-        private ArrayList<String> getMovieDataFromJson(String forecastJsonStr)
+        private ArrayList<Mymovie> getMovieDataFromJson(String forecastJsonStr)
                 throws JSONException {
             JSONObject movieJson = new JSONObject(forecastJsonStr);
             JSONArray movieArray = movieJson.getJSONArray("results");
-            ArrayList<String> urls = new ArrayList<>();
+            ArrayList<Mymovie> urls = new ArrayList<>();
             for (int i = 0; i < movieArray.length(); i++) {
                 JSONObject movie = movieArray.getJSONObject(i);
-                urls.add("http://image.tmdb.org/t/p/w185" + movie.getString("poster_path"));
-                for (String s:urls){
-                    Log.v(LOG_TAG,"Movie entry"+ s);
-                }
+//                urls.add("http://image.tmdb.org/t/p/w185" + movie.getString("poster_path"));
+//                for (String s : urls) {
+//                    Log.v(LOG_TAG, "Movie entry" + s);
+//                }
 
+                Mymovie movieModel = new Mymovie(movie);
+                urls.add(movieModel);
             }
             return urls;
         }
 
 
+     @Override
+        protected void onPostExecute(ArrayList<Mymovie> movies) {
+         super.onPostExecute(movies);
+          if(movies!=null) {
+                mMovieAdapter= new ImageAdapter(getActivity(),movies);
+                g.setAdapter(mMovieAdapter);
+                mMovieAdapter.notifyDataSetChanged();
+            }
+    }
+    }
 
+
+    class FetchFavoriteMoviesTask extends AsyncTask<Void, Void, ArrayList<Mymovie>> {
+        private Context mContext;
+
+        public FetchFavoriteMoviesTask(Context context) {
+            mContext = context;
+        }
 
         @Override
-        protected void onPostExecute(ArrayList<String> strings) {
-            super.onPostExecute(strings);
-            if(strings!=null) {
-                mMovieAdapter= new ImageAdapter(getActivity(),strings);
+        protected ArrayList<Mymovie> doInBackground(Void... params) {
+            Cursor cursor = mContext.getContentResolver().query(
+                    MovieContract.MovieEntry.CONTENT_URI,
+                    MOVIE_COLUMNS,
+                    null,
+                    null,
+                    null
+            );
+            return getFavoriteMoviesDataFromCursor(cursor);
+        }
+
+        private ArrayList<Mymovie> getFavoriteMoviesDataFromCursor(Cursor cursor){
+            ArrayList<Mymovie> results = new ArrayList<>();
+            if (cursor != null && cursor.moveToFirst()) {
+                do {
+                    Mymovie movie = new Mymovie(cursor);
+                    results.add(movie);
+                } while (cursor.moveToNext());
+                cursor.close();
+            }
+            return results;
+        }
+
+        @Override
+        protected void onPostExecute(ArrayList<Mymovie> movies) {
+            super.onPostExecute(movies);
+            if(movies!=null) {
+                mMovieAdapter= new ImageAdapter(getActivity(),movies);
                 g.setAdapter(mMovieAdapter);
                 mMovieAdapter.notifyDataSetChanged();
             }
         }
     }
+}
 
 
-    }

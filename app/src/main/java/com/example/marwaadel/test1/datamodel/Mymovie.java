@@ -1,14 +1,18 @@
 package com.example.marwaadel.test1.datamodel;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import android.database.Cursor;
+import android.os.Parcel;
+import android.os.Parcelable;
+
+import com.example.marwaadel.test1.MainActivityFragment;
+
+import org.json.JSONException;
+import org.json.JSONObject;
 
 /**
  * Created by Marwa Adel on 12/25/2015.
  */
-public class Mymovie
+public class Mymovie implements Parcelable
 {
 
 
@@ -20,21 +24,63 @@ private String posterPath;
 private String overview;
 
 private String releaseDate;
+    private Integer id;
 
-private List<Integer> genreIds = new ArrayList<Integer>();
 
-private Integer id;
-
-private String originalTitle;
-
-private String originalLanguage;
 
 private String title;
 
 
-private Double voteAverage;
+private String voteAverage;
 
-private Map<String, Object> additionalProperties = new HashMap<String, Object>();
+
+
+    public Mymovie(JSONObject movie) throws JSONException {
+        this.id = movie.getInt("id");
+        this.title=movie.getString("original_title");
+        this.overview = movie.getString("overview");
+        this.posterPath = movie.getString("poster_path");
+        this.voteAverage = movie.getString("vote_average");
+        this.releaseDate = movie.getString("release_date");
+
+
+    }
+
+
+    private Mymovie(Parcel in) {
+        id = in.readInt();
+        title = in.readString();
+        posterPath = in.readString();
+        overview = in.readString();
+        voteAverage = in.readString();
+        releaseDate = in.readString();
+    }
+
+    public static final Creator<Mymovie> CREATOR = new Creator<Mymovie>() {
+        @Override
+        public Mymovie createFromParcel(Parcel in) {
+            return new Mymovie(in);
+        }
+
+        @Override
+        public Mymovie[] newArray(int size) {
+            return new Mymovie[size];
+        }
+    };
+
+    public Mymovie(Cursor cursor) {
+
+        this.id = cursor.getInt(MainActivityFragment.COL_MOVIE_ID);
+        this.title = cursor.getString(MainActivityFragment.COL_TITLE);
+        this.posterPath = cursor.getString(MainActivityFragment.COL_IMAGE);
+
+        this.overview = cursor.getString(MainActivityFragment.COL_OVERVIEW);
+        this.voteAverage = cursor.getString(MainActivityFragment.COL_RATING);
+        this.releaseDate = cursor.getString(MainActivityFragment.COL_DATE);
+
+
+    }
+
 
     /**
      * @return The posterPath
@@ -85,21 +131,6 @@ private Map<String, Object> additionalProperties = new HashMap<String, Object>()
         this.releaseDate = releaseDate;
     }
 
-    /**
-     * @return The genreIds
-     */
-
-    public List<Integer> getGenreIds() {
-        return genreIds;
-    }
-
-    /**
-     * @param genreIds The genre_ids
-     */
-
-    public void setGenreIds(List<Integer> genreIds) {
-        this.genreIds = genreIds;
-    }
 
     /**
      * @return The id
@@ -117,37 +148,6 @@ private Map<String, Object> additionalProperties = new HashMap<String, Object>()
         this.id = id;
     }
 
-    /**
-     * @return The originalTitle
-     */
-
-    public String getOriginalTitle() {
-        return originalTitle;
-    }
-
-    /**
-     * @param originalTitle The original_title
-     */
-
-    public void setOriginalTitle(String originalTitle) {
-        this.originalTitle = originalTitle;
-    }
-
-    /**
-     * @return The originalLanguage
-     */
-
-    public String getOriginalLanguage() {
-        return originalLanguage;
-    }
-
-    /**
-     * @param originalLanguage The original_language
-     */
-
-    public void setOriginalLanguage(String originalLanguage) {
-        this.originalLanguage = originalLanguage;
-    }
 
     /**
      * @return The title
@@ -170,7 +170,7 @@ private Map<String, Object> additionalProperties = new HashMap<String, Object>()
      * @return The voteAverage
      */
 
-    public Double getVoteAverage() {
+    public String getVoteAverage() {
         return voteAverage;
     }
 
@@ -178,21 +178,28 @@ private Map<String, Object> additionalProperties = new HashMap<String, Object>()
      * @param voteAverage The vote_average
      */
 
-    public void setVoteAverage(Double voteAverage) {
+    public void setVoteAverage(String voteAverage) {
         this.voteAverage = voteAverage;
     }
 
 
-    public Map<String, Object> getAdditionalProperties() {
-        return this.additionalProperties;
-    }
 
 
-    public void setAdditionalProperty(String name, Object value) {
-        this.additionalProperties.put(name, value);
+    @Override
+    public int describeContents() {
+        return 0;
     }
+
+    @Override
+    public void writeToParcel(Parcel dest, int flags) {
+        dest.writeInt(id);
+        dest.writeString(title);
+        dest.writeString(posterPath);
+        dest.writeString(overview);
+        dest.writeString(voteAverage);
+        dest.writeString(releaseDate);
+    }
+
 
 }
-
-
 
